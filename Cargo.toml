@@ -1,0 +1,16 @@
+[package]
+name = "shitup"
+version = "0.1.0"
+authors = ["Marwane BENOU-KAISS <mbenoukaiss@gmail.com>"]
+edition = "2018"
+license = "MIT"
+
+[dependencies]
+tokio = { version = "0.2", features = ["macros"] }
+warp = "0.2"
+juniper = { git = "https://github.com/graphql-rust/juniper" }
+juniper_warp = { git = "https://github.com/graphql-rust/juniper" }
+tokio-postgres = { version = "0.5", features = ["with-uuid-0_8", "with-chrono-0_4"] }
+serde_json = "1.0"
+uuid = { version = "0.8", features = ["v4"] }
+chrono = "0.4.11"
