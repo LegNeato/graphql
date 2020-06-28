@@ -1,5 +1,5 @@
 use chrono::NaiveDate;
-use juniper::{FieldResult, RootNode, EmptySubscription, Context as JuniperContext};
+use juniper::{Context as JuniperContext, EmptySubscription, FieldResult, RootNode};
 use std::sync::Arc;
 use tokio_postgres::Client;
 use uuid::Uuid;
@@ -13,14 +13,13 @@ pub struct Context {
 impl Context {
     pub fn with(client: &Arc<Client>) -> Context {
         Context {
-            client: Arc::clone(client)
+            client: Arc::clone(client),
         }
     }
 }
 
 impl JuniperContext for Context {}
 
-#[derive(GraphQLObject)]
 pub struct Member {
     pub id: String,
     pub email: String,
@@ -31,13 +30,29 @@ pub struct Member {
 
 #[graphql_object(Context = Context)]
 impl Member {
-    pub async fn rides(&self) -> FieldResult<Vec<Ride>> {
-        let context: &Context = executor.context();
-
-        let rows = context.client.query(
-            "SELECT id, name, description, distance, started, ended FROM ride WHERE rider = $1",
-            &[&self.id],
-        ).await?;
+    fn id(&self) -> &str {
+        &self.id
+    }
+    fn email(&self) -> &str {
+        &self.email
+    }
+    fn firstname(&self) -> &str {
+        &self.firstname
+    }
+    fn lastname(&self) -> &str {
+        &self.lastname
+    }
+    fn birthdate(&self) -> NaiveDate {
+        self.birthdate
+    }
+    async fn rides(&self, context: &Context) -> FieldResult<Vec<Ride>> {
+        let rows = context
+            .client
+            .query(
+                "SELECT id, name, description, distance, started, ended FROM ride WHERE rider = $1",
+                &[&self.id],
+            )
+            .await?;
 
         let mut rides: Vec<Ride> = Vec::with_capacity(rows.len());
 
@@ -73,10 +88,13 @@ impl QueryRoot {
     async fn member(ctx: &Context, id: String) -> FieldResult<Member> {
         let uuid = Uuid::parse_str(&id)?;
 
-        let row = ctx.client.query_one(
-            "SELECT email, firstname, lastname, birthdate FROM member WHERE id = $1",
-            &[&uuid],
-        ).await?;
+        let row = ctx
+            .client
+            .query_one(
+                "SELECT email, firstname, lastname, birthdate FROM member WHERE id = $1",
+                &[&uuid],
+            )
+            .await?;
 
         let member = Member {
             id,
@@ -90,10 +108,13 @@ impl QueryRoot {
     }
 
     async fn members(ctx: &Context) -> FieldResult<Vec<Member>> {
-        let rows = ctx.client.query(
-            "SELECT id, email, firstname, lastname, birthdate FROM member",
-            &[],
-        ).await?;
+        let rows = ctx
+            .client
+            .query(
+                "SELECT id, email, firstname, lastname, birthdate FROM member",
+                &[],
+            )
+            .await?;
 
         let mut members = Vec::new();
 
@@ -117,7 +138,13 @@ pub struct MutationRoot;
 
 #[graphql_object(Context = Context)]
 impl MutationRoot {
-    async fn register_member(ctx: &Context, email: String, firstname: String, lastname: String, birthdate: NaiveDate) -> FieldResult<Member> {
+    async fn register_member(
+        ctx: &Context,
+        email: String,
+        firstname: String,
+        lastname: String,
+        birthdate: NaiveDate,
+    ) -> FieldResult<Member> {
         let id = Uuid::new_v4();
         let email = email.to_lowercase();
 
@@ -135,7 +162,14 @@ impl MutationRoot {
         })
     }
 
-    async fn register_ride(ctx: &Context, rider: String, name: String, description: String, started: NaiveDate, ended: NaiveDate) -> FieldResult<Ride> {
+    async fn register_ride(
+        ctx: &Context,
+        rider: String,
+        name: String,
+        description: String,
+        started: NaiveDate,
+        ended: NaiveDate,
+    ) -> FieldResult<Ride> {
         let id = Uuid::new_v4();
 
         ctx.client.execute(
@@ -153,4 +187,3 @@ impl MutationRoot {
         })
     }
 }
-
